@@ -69,6 +69,11 @@ $ export AWS_SECRET_ACCESS_KEY=
 | retries | int | Number of retry attempts. Default: `0` |
 | retrysleep | int | How long to sleep in between each retry in milliseconds. Default: `0` (exponential backoff) |
 | rr | - | Reduced redundancy storage for PUT requests | 
+| object-list-file | string | Path to a newline-separated list of object keys to drive read-style workloads (e.g. `get`, `head`, `delete`). |
+| key-distribution | string | How to walk keys from `object-list-file`; one of `roundrobin` (default) or `random`. |
+| conn-lifetime-sec | int | Recycle persistent HTTP connections after this many seconds. `0` keeps connections alive indefinitely. |
+| tps | int | Target transactions per second. When > 0, overrides the derived rate from `requests` / `duration`. |
+| metrics-addr | string | Address (for example `:9090`) where the Prometheus metrics endpoint will be exposed. Leave empty to disable. |
 | size | int | Object size in bytes. Metric and binary byte size entries are valid (for example, 5MiB = 5242880 and 5MB = 5000000). Default: `30720` |
 | suffix-naming | string | Determines how the numerical key names are divided between concurrent threads. One of: `separate`, `together`. (Default is `separate`.) If separate, each thread gets a separate numerical range to handle; if together, the threads are assigned numbers to increase at the same rate (this does not force the threads to sync with each other). |
 | tagging | string | The tag-set for the object. The tag-set must be formatted as such: `'tag1=value1&tag2=value2'`. Used for `put`, `puttagging`, `putget` and `putget9010r` |
@@ -157,6 +162,17 @@ $ export AWS_SECRET_ACCESS_KEY=
 - This command will perform a total of 20,000 PUT requests (or in this case slightly less because 20,000 does not divide by 128).
 - The object size is 20MB (20,000,000 bytes).
 - Replace the sample IP/port combination with the one you are using.
+
+### Recycling Connections with a TTL
+
+```raw
+./s3tester30new --operation=get --object-list-file=objects.txt --requests=500 --concurrency=8 \\
+    --conn-lifetime-sec=10 --endpoint=https://127.0.0.1:18082 --bucket=test
+```
+
+- Loads keys from `objects.txt` and hands them to workers using the default round-robin distribution.
+- Connections are forcefully recycled after 10 seconds of idle time, letting you observe the TTL reaper in action.
+- Combine with `--metrics-addr=:9090` to scrape Prometheus metrics while the run is active.
 
 ### Reading objects from a bucket (and other operations)
 
